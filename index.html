@@ -1,0 +1,822 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Point Cloud</title>
+    <style>
+      :root {
+        --sidebar-w: 232px;
+        --bg: #787878;
+        --panel: #f2f2f0;
+        --panel-border: #e2e2de;
+        --text: #3a3a38;
+        --text-muted: #9a9a96;
+        --text-dim: #b8b8b4;
+        --mono: "SF Mono", "Menlo", "Monaco", "Consolas", monospace;
+        --sans:
+          -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", system-ui,
+          sans-serif;
+        --btn: #3a3a38;
+        --btn-hover: #555553;
+        --radius: 4px;
+      }
+      *,
+      *::before,
+      *::after {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        height: 100%;
+      }
+      body {
+        background: var(--bg);
+        font-family: var(--sans);
+        font-size: 12px;
+        color: var(--text);
+        overflow: hidden;
+        display: flex;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      #sidebar {
+        width: var(--sidebar-w);
+        background: var(--panel);
+        border-right: 1px solid var(--panel-border);
+        display: flex;
+        flex-direction: column;
+        flex-shrink: 0;
+        overflow: hidden;
+      }
+      #sidebar-scroll {
+        flex: 1;
+        overflow-y: auto;
+        padding: 16px 14px 8px;
+        scrollbar-width: thin;
+        scrollbar-color: var(--panel-border) transparent;
+      }
+      #sidebar-scroll::-webkit-scrollbar {
+        width: 5px;
+      }
+      #sidebar-scroll::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      #sidebar-scroll::-webkit-scrollbar-thumb {
+        background: var(--panel-border);
+        border-radius: 3px;
+      }
+
+      #sidebar-footer {
+        padding: 10px 14px 14px;
+        border-top: 1px solid var(--panel-border);
+      }
+
+      .section {
+        font-size: 10px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.6px;
+        color: var(--text-muted);
+        margin: 14px 0 6px;
+      }
+      .section:first-child {
+        margin-top: 0;
+      }
+
+      .row {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        padding: 4px 2px;
+        border-radius: var(--radius);
+        transition: background 0.15s ease;
+      }
+      .row:hover {
+        background: rgba(0, 0, 0, 0.035);
+      }
+
+      .row input[type="color"] {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 18px;
+        height: 18px;
+        border: 1px solid var(--panel-border);
+        border-radius: 3px;
+        cursor: pointer;
+        padding: 0;
+        background: none;
+        flex-shrink: 0;
+        transition: border-color 0.15s ease;
+      }
+      .row input[type="color"]:hover {
+        border-color: var(--text-muted);
+      }
+      .row input[type="color"]::-webkit-color-swatch-wrapper {
+        padding: 1px;
+      }
+      .row input[type="color"]::-webkit-color-swatch {
+        border: none;
+        border-radius: 2px;
+      }
+
+      .row .name {
+        flex: 1;
+        color: var(--text);
+        font-size: 11.5px;
+        line-height: 1;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .row .hex {
+        font-family: var(--mono);
+        font-size: 9.5px;
+        color: var(--text-dim);
+        letter-spacing: -0.2px;
+        flex-shrink: 0;
+      }
+
+      .ctrl-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 6px;
+      }
+      .ctrl-row label {
+        font-size: 10px;
+        font-weight: 500;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+        flex-shrink: 0;
+        min-width: 52px;
+      }
+      .ctrl-row input[type="range"] {
+        flex: 1;
+        height: 3px;
+        -webkit-appearance: none;
+        appearance: none;
+        background: var(--panel-border);
+        border-radius: 2px;
+        outline: none;
+      }
+      .ctrl-row input[type="range"]::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: var(--text);
+        cursor: pointer;
+        border: none;
+      }
+      .ctrl-row .val {
+        font-family: var(--mono);
+        font-size: 9.5px;
+        color: var(--text-dim);
+        min-width: 28px;
+        text-align: right;
+      }
+
+      .export-btn {
+        display: block;
+        width: 100%;
+        padding: 7px 0;
+        margin-top: 10px;
+        background: var(--btn);
+        color: #fff;
+        border: none;
+        border-radius: var(--radius);
+        font-family: var(--sans);
+        font-size: 11px;
+        font-weight: 500;
+        letter-spacing: 0.2px;
+        cursor: pointer;
+        transition: background 0.15s ease;
+      }
+      .export-btn:hover {
+        background: var(--btn-hover);
+      }
+      .export-btn:active {
+        transform: scale(0.98);
+      }
+
+      #canvas-wrap {
+        flex: 1;
+        position: relative;
+      }
+      canvas {
+        display: block;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="sidebar">
+      <div id="sidebar-scroll">
+        <div id="colors"></div>
+
+        <div class="section">Underwater</div>
+        <div class="ctrl-row">
+          <label>Caustics</label>
+          <input
+            type="range"
+            id="u-caustics"
+            min="0"
+            max="2"
+            step="0.05"
+            value="0.6"
+          />
+          <span class="val" id="v-caustics">0.60</span>
+        </div>
+        <div class="ctrl-row">
+          <label>God Rays</label>
+          <input
+            type="range"
+            id="u-godrays"
+            min="0"
+            max="2"
+            step="0.05"
+            value="0.5"
+          />
+          <span class="val" id="v-godrays">0.50</span>
+        </div>
+        <div class="ctrl-row">
+          <label>Bubbles</label>
+          <input
+            type="range"
+            id="u-bubbles"
+            min="0"
+            max="2"
+            step="0.05"
+            value="0.4"
+          />
+          <span class="val" id="v-bubbles">0.40</span>
+        </div>
+        <div class="ctrl-row">
+          <label>Speed</label>
+          <input
+            type="range"
+            id="u-speed"
+            min="0"
+            max="3"
+            step="0.1"
+            value="1.0"
+          />
+          <span class="val" id="v-speed">1.0</span>
+        </div>
+
+        <div class="section">Fog</div>
+        <div class="ctrl-row">
+          <label>Density</label>
+          <input
+            type="range"
+            id="u-fogdensity"
+            min="0"
+            max="0.3"
+            step="0.005"
+            value="0.06"
+          />
+          <span class="val" id="v-fogdensity">0.06</span>
+        </div>
+        <div class="ctrl-row">
+          <label>Max</label>
+          <input
+            type="range"
+            id="u-fogmax"
+            min="0"
+            max="1"
+            step="0.05"
+            value="0.85"
+          />
+          <span class="val" id="v-fogmax">0.85</span>
+        </div>
+        <div class="row">
+          <input type="color" id="u-fogcolor" value="#021038" />
+          <span class="name">Fog Color</span>
+          <span class="hex" id="v-fogcolor">#021038</span>
+        </div>
+      </div>
+
+      <div id="sidebar-footer">
+        <div class="ctrl-row">
+          <label>Pt Size</label>
+          <input
+            type="range"
+            id="pt-size"
+            min="0.5"
+            max="8"
+            step="0.25"
+            value="1.5"
+          />
+          <span class="val" id="v-ptsize">1.5</span>
+        </div>
+        <button class="export-btn" id="btn-export">Export Settings</button>
+      </div>
+    </div>
+
+    <div id="canvas-wrap"></div>
+
+    <script type="module">
+      import * as THREE from "three";
+      import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+      import { FullScreenQuad } from "three/examples/jsm/postprocessing/Pass.js";
+
+      // ── Color definitions ──
+      const COLORS = [
+        {
+          group: "Substrate",
+          items: [
+            { key: "SAND", rgb: [220, 200, 140], name: "Sand" },
+            { key: "SILTY_SAND", rgb: [190, 180, 120], name: "Silty Sand" },
+            { key: "SANDY_SILT", rgb: [150, 160, 120], name: "Sandy Silt" },
+            { key: "SILT", rgb: [120, 130, 100], name: "Silt" },
+            { key: "CLAYEY_SILT", rgb: [100, 110, 120], name: "Clayey Silt" },
+            { key: "CLAY", rgb: [80, 90, 110], name: "Clay" },
+            { key: "SANDY_CLAY", rgb: [110, 100, 100], name: "Sandy Clay" },
+            { key: "SILTY_CLAY", rgb: [90, 95, 110], name: "Silty Clay" },
+            { key: "GRAV_SED", rgb: [160, 130, 90], name: "Gravelly Sed." },
+            { key: "GRAVEL", rgb: [140, 110, 70], name: "Gravel" },
+          ],
+        },
+        {
+          group: "Geology",
+          items: [
+            { key: "br", rgb: [140, 120, 100], name: "Bedrock" },
+            { key: "br_q", rgb: [160, 140, 120], name: "Prob. Bedrock" },
+            { key: "Qvd", rgb: [210, 190, 130], name: "Glacial Drift" },
+            { key: "Qva", rgb: [190, 170, 110], name: "Glacial Advance" },
+            { key: "Qvt", rgb: [170, 150, 100], name: "Glacial Till" },
+            { key: "Qvrmd", rgb: [200, 180, 140], name: "Recess. Drift" },
+            { key: "Qvrmo", rgb: [185, 165, 135], name: "Recess. Outwash" },
+            { key: "Qvrms", rgb: [220, 200, 160], name: "Recess. Sand" },
+            { key: "Qvrm", rgb: [180, 160, 140], name: "Recess. Moraine" },
+            { key: "Qvrme", rgb: [195, 175, 155], name: "Recess. Estuarine" },
+            { key: "Qpfn", rgb: [175, 155, 120], name: "Pleistocene" },
+            { key: "Qb", rgb: [180, 200, 140], name: "Beach" },
+            { key: "Qtf", rgb: [160, 185, 130], name: "Floodplain" },
+            { key: "Qd", rgb: [240, 230, 180], name: "Dune Sand" },
+            { key: "Qm", rgb: [120, 160, 130], name: "Marsh" },
+            { key: "Ql", rgb: [150, 130, 100], name: "Landslide" },
+            { key: "f", rgb: [180, 180, 180], name: "Fill" },
+            { key: "unmap", rgb: [80, 80, 80], name: "Unmapped" },
+          ],
+        },
+      ];
+
+      const toHex = (r, g, b) =>
+        "#" + [r, g, b].map((c) => c.toString(16).padStart(2, "0")).join("");
+      const fromHex = (h) => {
+        const m = h.match(/^#(..)(..)(..)$/);
+        return [parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16)];
+      };
+      const rk = (r, g, b) => (r << 16) | (g << 8) | b;
+
+      const lookup = {};
+      const cur = {};
+      COLORS.flatMap((g) => g.items).forEach((e) => {
+        lookup[rk(...e.rgb)] = e;
+        cur[e.key] = [...e.rgb];
+      });
+
+      // ── Underwater post-process shader ──
+      const underwaterShader = {
+        uniforms: {
+          tScene: { value: null },
+          tDepth: { value: null },
+          uTime: { value: 0 },
+          uResolution: { value: new THREE.Vector2() },
+          uNear: { value: 0.001 },
+          uFar: { value: 100.0 },
+          uCaustics: { value: 0.6 },
+          uGodrays: { value: 0.5 },
+          uBubbles: { value: 0.4 },
+          uSpeed: { value: 1.0 },
+          uFogDensity: { value: 0.06 },
+          uFogMax: { value: 0.85 },
+          uFogColor: { value: new THREE.Vector3(0.02, 0.06, 0.14) },
+        },
+        vertexShader: `
+    varying vec2 vUv;
+    void main() { vUv = uv; gl_Position = vec4(position, 1.0); }
+  `,
+        fragmentShader: `
+    precision highp float;
+    uniform sampler2D tScene;
+    uniform sampler2D tDepth;
+    uniform float uTime;
+    uniform vec2 uResolution;
+    uniform float uNear;
+    uniform float uFar;
+    uniform float uCaustics;
+    uniform float uGodrays;
+    uniform float uBubbles;
+    uniform float uSpeed;
+    uniform float uFogDensity;
+    uniform float uFogMax;
+    uniform vec3 uFogColor;
+    varying vec2 vUv;
+
+    float linearizeDepth(float d) {
+      return uNear * uFar / (uFar - d * (uFar - uNear));
+    }
+
+    #define TAU 6.28318530718
+    #define MAX_ITER 5
+
+    // ── Caustics ──
+    vec3 caustic(vec2 uv, float time) {
+      vec2 p = mod(uv * TAU, TAU) - 250.0;
+      float t_base = time * 0.5 + 23.0;
+      vec2 i = p;
+      float c = 1.0;
+      float inten = 0.005;
+      for (int n = 0; n < MAX_ITER; n++) {
+        float t = t_base * (1.0 - (3.5 / float(n + 1)));
+        i = p + vec2(cos(t - i.x) + sin(t + i.y), sin(t - i.y) + cos(t + i.x));
+        c += 1.0 / length(vec2(p.x / (sin(i.x + t) / inten), p.y / (cos(i.y + t) / inten)));
+      }
+      c /= float(MAX_ITER);
+      c = 1.17 - pow(c, 1.4);
+      vec3 color = vec3(pow(abs(c), 8.0));
+      color = clamp(color + vec3(0.0, 0.35, 0.5), 0.0, 1.0);
+      return mix(color, vec3(1.0), 0.3);
+    }
+
+    // ── God Rays ──
+    float causticX(float x, float power, float gtime) {
+      float p = mod(x * TAU, TAU) - 250.0;
+      float time = gtime * 0.5 + 23.0;
+      float i = p;
+      float c = 1.0;
+      float inten = 0.005;
+      for (int n = 0; n < MAX_ITER / 2; n++) {
+        float t = time * (1.0 - (3.5 / float(n + 1)));
+        i = p + cos(t - i) + sin(t + i);
+        c += 1.0 / abs(p / (sin(i + t) / inten));
+      }
+      c /= float(MAX_ITER);
+      c = 1.17 - pow(c, power);
+      return c;
+    }
+
+    float godRays(vec2 uv, float time) {
+      float light = 0.0;
+      light += pow(causticX((uv.x + 0.08 * uv.y) / 1.7 + 0.5, 1.8, time * 0.65), 10.0) * 0.05;
+      light -= pow((1.0 - uv.y) * 0.3, 2.0) * 0.2;
+      light += pow(causticX(sin(uv.x), 0.3, time * 0.7), 9.0) * 0.4;
+      light += pow(causticX(cos(uv.x * 2.3), 0.3, time * 1.3), 4.0) * 0.1;
+      light -= pow((1.0 - uv.y) * 0.3, 3.0);
+      return clamp(light, 0.0, 1.0);
+    }
+
+    // ── Bubbles ──
+    float hash21(vec2 p) {
+      vec3 p3 = fract(vec3(p.xyx) * vec3(0.1031, 0.1030, 0.0973));
+      p3 += dot(p3, p3.yzx + 33.33);
+      return fract((p3.x + p3.y) * p3.z);
+    }
+
+    float bubble(vec2 uv, vec2 center, float radius) {
+      float d = length(uv - center);
+      float glow = smoothstep(radius * 1.5, 0.0, d) * 0.08;
+      float rim = smoothstep(radius * 0.05, 0.0, abs(d - radius)) * 0.3;
+      vec2 hlOff = vec2(-0.3, 0.3) * radius;
+      float hl = smoothstep(radius * 0.4, 0.0, length(uv - center + hlOff)) * 0.4;
+      return glow + rim + hl;
+    }
+
+    float bubbleField(vec2 uv, float time) {
+      float b = 0.0;
+      for (int i = 0; i < 12; i++) {
+        float fi = float(i);
+        float speed = 0.15 + hash21(vec2(fi, 0.0)) * 0.2;
+        float phase = hash21(vec2(fi, 1.0)) * TAU;
+        float xBase = hash21(vec2(fi, 2.0)) * 2.0 - 1.0;
+        float radius = 0.008 + hash21(vec2(fi, 3.0)) * 0.018;
+        float x = xBase + sin(time * 0.3 + phase) * 0.15;
+        float y = fract(time * speed + hash21(vec2(fi, 4.0))) * 1.4 - 0.2;
+        b += bubble(uv, vec2(x, y), radius);
+      }
+      return b;
+    }
+
+    void main() {
+      vec4 scene = texture2D(tScene, vUv);
+      float time = uTime * uSpeed;
+      float aspect = uResolution.x / uResolution.y;
+
+      // Caustics
+      vec2 causticUV = vec2(vUv.x * 2.0, vUv.y * 1.5);
+      vec3 c = caustic(causticUV, time);
+      float causticMask = pow(vUv.y, 2.0);
+      vec3 causticColor = (c - 0.5) * uCaustics * causticMask;
+
+      // God rays
+      vec2 rayUV = vec2((vUv.x - 0.5) * aspect, vUv.y);
+      float rays = godRays(rayUV, time);
+      vec3 rayColor = rays * uGodrays * vec3(0.15, 0.35, 0.4);
+
+      // Bubbles
+      vec2 bubbleUV = vec2((vUv.x * 2.0 - 1.0) * aspect, vUv.y);
+      float b = bubbleField(bubbleUV, uTime) * uBubbles;
+      vec3 bubbleColor = vec3(0.3, 0.7, 1.0) * b;
+
+      // Fog from depth buffer
+      float rawDepth = texture2D(tDepth, vUv).r;
+      float linDepth = linearizeDepth(rawDepth);
+      float fogFactor = 1.0 - exp(-uFogDensity * linDepth);
+      fogFactor = clamp(fogFactor, 0.0, uFogMax);
+
+      // Composite
+      vec3 color = scene.rgb;
+      color = mix(color, uFogColor, fogFactor);
+      color += causticColor;
+      color += rayColor;
+      color += bubbleColor;
+
+      gl_FragColor = vec4(clamp(color, 0.0, 1.0), 1.0);
+    }
+  `,
+      };
+
+      // ── Renderer ──
+      const wrap = document.getElementById("canvas-wrap");
+      const renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.setClearColor(0x787878);
+      wrap.appendChild(renderer.domElement);
+
+      const scene = new THREE.Scene();
+      const camera = new THREE.PerspectiveCamera(50, 1, 0.001, 100);
+      camera.position.set(1, 0.8, 1);
+
+      const controls = new OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.08;
+      controls.target.set(0, 0, 0);
+
+      // Render target with depth texture
+      let rtScene = new THREE.WebGLRenderTarget(1, 1, {
+        depthTexture: new THREE.DepthTexture(1, 1, THREE.FloatType),
+      });
+
+      // Post-process material
+      const postMat = new THREE.ShaderMaterial(underwaterShader);
+      const fsQuad = new FullScreenQuad(postMat);
+
+      let cloud = null,
+        vtxCats = null,
+        vtxCount = 0,
+        counts = {};
+      const clock = new THREE.Clock();
+
+      function resize() {
+        const w = wrap.clientWidth,
+          h = wrap.clientHeight;
+        if (w === 0 || h === 0) return;
+        camera.aspect = w / h;
+        camera.updateProjectionMatrix();
+        renderer.setSize(w, h);
+        rtScene.setSize(
+          w * Math.min(window.devicePixelRatio, 2),
+          h * Math.min(window.devicePixelRatio, 2),
+        );
+        postMat.uniforms.uResolution.value.set(w, h);
+      }
+      window.addEventListener("resize", resize);
+      resize();
+
+      (function loop() {
+        requestAnimationFrame(loop);
+        controls.update();
+        postMat.uniforms.uTime.value = clock.getElapsedTime();
+
+        // Pass 1: render scene to texture
+        renderer.setRenderTarget(rtScene);
+        renderer.render(scene, camera);
+
+        // Pass 2: fullscreen post-process
+        renderer.setRenderTarget(null);
+        postMat.uniforms.tScene.value = rtScene.texture;
+        postMat.uniforms.tDepth.value = rtScene.depthTexture;
+        postMat.uniforms.uNear.value = camera.near;
+        postMat.uniforms.uFar.value = camera.far;
+        fsQuad.render(renderer);
+      })();
+
+      // ── PLY ──
+      function loadPLY(buf) {
+        const dec = new TextDecoder();
+        const hdr = dec.decode(
+          new Uint8Array(buf, 0, Math.min(2000, buf.byteLength)),
+        );
+        const ei = hdr.indexOf("end_header\n");
+        if (ei < 0) return;
+        const dataOff = ei + 11;
+        let n = 0;
+        for (const l of hdr.slice(0, ei).split("\n"))
+          if (l.startsWith("element vertex")) n = parseInt(l.split(/\s+/)[2]);
+
+        const dv = new DataView(buf, dataOff);
+        const stride = 28;
+        const pos = new Float32Array(n * 3);
+        const col = new Float32Array(n * 3);
+        const cats = new Array(n);
+        counts = {};
+
+        for (let i = 0; i < n; i++) {
+          const o = i * stride;
+          pos[i * 3] = dv.getFloat32(o, true);
+          pos[i * 3 + 1] = -dv.getFloat32(o + 8, true);
+          pos[i * 3 + 2] = dv.getFloat32(o + 4, true);
+          const r = dv.getUint8(o + 24),
+            g = dv.getUint8(o + 25),
+            b = dv.getUint8(o + 26);
+          col[i * 3] = r / 255;
+          col[i * 3 + 1] = g / 255;
+          col[i * 3 + 2] = b / 255;
+          const e = lookup[rk(r, g, b)];
+          cats[i] = e ? e.key : null;
+          counts[e ? e.key : "_other"] =
+            (counts[e ? e.key : "_other"] || 0) + 1;
+        }
+
+        if (cloud) {
+          cloud.geometry.dispose();
+          cloud.material.dispose();
+          scene.remove(cloud);
+        }
+
+        const geom = new THREE.BufferGeometry();
+        geom.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+        geom.setAttribute("color", new THREE.BufferAttribute(col, 3));
+        geom.computeBoundingBox();
+        geom.computeBoundingSphere();
+
+        cloud = new THREE.Points(
+          geom,
+          new THREE.PointsMaterial({
+            size: parseFloat(document.getElementById("pt-size").value),
+            vertexColors: true,
+            sizeAttenuation: false,
+          }),
+        );
+
+        const center = new THREE.Vector3();
+        geom.boundingBox.getCenter(center);
+        cloud.position.set(-center.x, -center.y, -center.z);
+        scene.add(cloud);
+
+        const r = geom.boundingSphere.radius;
+        controls.target.set(0, 0, 0);
+        camera.position.set(r * 1.1, r * 0.7, r * 1.1);
+
+        vtxCats = cats;
+        vtxCount = n;
+        buildColorUI();
+      }
+
+      // ── Color UI ──
+      function buildColorUI() {
+        const el = document.getElementById("colors");
+        el.innerHTML = "";
+
+        COLORS.forEach(({ group, items }) => {
+          const shown = items.filter((e) => counts[e.key]);
+          if (!shown.length) return;
+
+          const t = document.createElement("div");
+          t.className = "section";
+          t.textContent = group;
+          el.appendChild(t);
+
+          shown.forEach((entry) => {
+            const div = document.createElement("div");
+            div.className = "row";
+
+            const inp = document.createElement("input");
+            inp.type = "color";
+            inp.value = toHex(...cur[entry.key]);
+            inp.setAttribute("aria-label", entry.name + " color");
+
+            const name = document.createElement("span");
+            name.className = "name";
+            name.textContent = entry.name;
+
+            const hx = document.createElement("span");
+            hx.className = "hex";
+            hx.textContent = inp.value;
+
+            inp.addEventListener("input", () => {
+              cur[entry.key] = fromHex(inp.value);
+              hx.textContent = inp.value;
+              applyColors();
+            });
+
+            div.append(inp, name, hx);
+            el.appendChild(div);
+          });
+        });
+      }
+
+      function applyColors() {
+        if (!cloud) return;
+        const c = cloud.geometry.attributes.color.array;
+        for (let i = 0; i < vtxCount; i++) {
+          const k = vtxCats[i];
+          if (k && cur[k]) {
+            c[i * 3] = cur[k][0] / 255;
+            c[i * 3 + 1] = cur[k][1] / 255;
+            c[i * 3 + 2] = cur[k][2] / 255;
+          }
+        }
+        cloud.geometry.attributes.color.needsUpdate = true;
+      }
+
+      // ── Slider wiring ──
+      function wireSlider(id, uniform, valId) {
+        const el = document.getElementById(id);
+        const vEl = document.getElementById(valId);
+        el.addEventListener("input", () => {
+          const v = parseFloat(el.value);
+          postMat.uniforms[uniform].value = v;
+          vEl.textContent = v.toFixed(v < 1 ? 2 : 1);
+        });
+      }
+      wireSlider("u-caustics", "uCaustics", "v-caustics");
+      wireSlider("u-godrays", "uGodrays", "v-godrays");
+      wireSlider("u-bubbles", "uBubbles", "v-bubbles");
+      wireSlider("u-speed", "uSpeed", "v-speed");
+      wireSlider("u-fogdensity", "uFogDensity", "v-fogdensity");
+      wireSlider("u-fogmax", "uFogMax", "v-fogmax");
+
+      document.getElementById("pt-size").addEventListener("input", (e) => {
+        document.getElementById("v-ptsize").textContent = parseFloat(
+          e.target.value,
+        ).toFixed(1);
+        if (cloud) cloud.material.size = parseFloat(e.target.value);
+      });
+
+      // Fog color picker
+      const fogColorInput = document.getElementById("u-fogcolor");
+      const fogColorHex = document.getElementById("v-fogcolor");
+      fogColorInput.addEventListener("input", () => {
+        const [r, g, b] = fromHex(fogColorInput.value);
+        postMat.uniforms.uFogColor.value.set(r / 255, g / 255, b / 255);
+        fogColorHex.textContent = fogColorInput.value;
+      });
+
+      // ── Export all settings ──
+      document.getElementById("btn-export").addEventListener("click", () => {
+        const settings = {
+          colors: {},
+          underwater: {
+            caustics: parseFloat(document.getElementById("u-caustics").value),
+            godrays: parseFloat(document.getElementById("u-godrays").value),
+            bubbles: parseFloat(document.getElementById("u-bubbles").value),
+            speed: parseFloat(document.getElementById("u-speed").value),
+          },
+          fog: {
+            density: parseFloat(document.getElementById("u-fogdensity").value),
+            max: parseFloat(document.getElementById("u-fogmax").value),
+            color: fogColorInput.value,
+          },
+          pointSize: parseFloat(document.getElementById("pt-size").value),
+        };
+        for (const [k, rgb] of Object.entries(cur))
+          settings.colors[k] = toHex(...rgb);
+
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(
+          new Blob([JSON.stringify(settings, null, 2)], {
+            type: "application/json",
+          }),
+        );
+        a.download = "settings.json";
+        a.click();
+      });
+
+      // ── Auto-load ──
+      fetch("./points.ply")
+        .then((r) => {
+          if (!r.ok) throw new Error(r.status);
+          return r.arrayBuffer();
+        })
+        .then(loadPLY)
+        .catch(() => {
+          const inp = document.createElement("input");
+          inp.type = "file";
+          inp.accept = ".ply";
+          inp.style.cssText =
+            "position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);font-size:14px;";
+          document.body.appendChild(inp);
+          inp.addEventListener("change", (e) => {
+            e.target.files[0].arrayBuffer().then(loadPLY);
+            inp.remove();
+          });
+        });
+    </script>
+  </body>
+</html>
