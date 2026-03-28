@@ -4,22 +4,30 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Point Cloud</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
     <style>
       :root {
-        --sidebar-w: 232px;
-        --bg: #787878;
-        --panel: #f2f2f0;
-        --panel-border: #e2e2de;
-        --text: #3a3a38;
-        --text-muted: #9a9a96;
-        --text-dim: #b8b8b4;
+        --sidebar-w: 256px;
+        --bg: #0a1420;
+        --panel: #0c1a2e;
+        --panel-border: #1a2d45;
+        --panel-hover: rgba(255, 255, 255, 0.04);
+        --text: #cdd8e4;
+        --text-muted: #5e7a94;
+        --text-dim: #3d5a74;
+        --accent: #c4956a;
+        --accent-hover: #d4a87e;
+        --accent-dim: rgba(196, 149, 106, 0.12);
         --mono: "SF Mono", "Menlo", "Monaco", "Consolas", monospace;
-        --sans:
-          -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", system-ui,
-          sans-serif;
-        --btn: #3a3a38;
-        --btn-hover: #555553;
-        --radius: 4px;
+        --sans: "Space Grotesk", system-ui, sans-serif;
+        --btn: #c4956a;
+        --btn-hover: #d4a87e;
+        --radius: 3px;
       }
       *,
       *::before,
@@ -50,11 +58,27 @@
         flex-direction: column;
         flex-shrink: 0;
         overflow: hidden;
+        position: relative;
+      }
+      #sidebar::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 120px;
+        background: linear-gradient(to bottom, rgba(196, 149, 106, 0.06), transparent);
+        pointer-events: none;
+        z-index: 0;
+      }
+      #sidebar > * {
+        position: relative;
+        z-index: 1;
       }
       #sidebar-scroll {
         flex: 1;
         overflow-y: auto;
-        padding: 16px 14px 8px;
+        padding: 20px 16px 12px;
         scrollbar-width: thin;
         scrollbar-color: var(--panel-border) transparent;
       }
@@ -68,19 +92,25 @@
         background: var(--panel-border);
         border-radius: 3px;
       }
+      #sidebar-scroll::-webkit-scrollbar-thumb:hover {
+        background: var(--text-dim);
+      }
 
       #sidebar-footer {
-        padding: 10px 14px 14px;
+        padding: 14px 16px 16px;
         border-top: 1px solid var(--panel-border);
+        background: rgba(0, 0, 0, 0.15);
       }
 
       .section {
-        font-size: 10px;
-        font-weight: 600;
+        font-size: 9px;
+        font-weight: 700;
         text-transform: uppercase;
-        letter-spacing: 0.6px;
-        color: var(--text-muted);
-        margin: 14px 0 6px;
+        letter-spacing: 1.2px;
+        color: var(--accent);
+        margin: 24px 0 8px;
+        padding-bottom: 6px;
+        border-bottom: 1px solid var(--accent-dim);
       }
       .section:first-child {
         margin-top: 0;
@@ -89,43 +119,250 @@
       .row {
         display: flex;
         align-items: center;
-        gap: 7px;
-        padding: 4px 2px;
+        gap: 10px;
+        padding: 5px 6px;
         border-radius: var(--radius);
-        transition: background 0.15s ease;
+        transition: background 0.2s cubic-bezier(0.25, 0, 0.2, 1);
       }
       .row:hover {
-        background: rgba(0, 0, 0, 0.035);
+        background: var(--panel-hover);
       }
 
-      .row input[type="color"] {
-        -webkit-appearance: none;
-        appearance: none;
-        width: 18px;
-        height: 18px;
-        border: 1px solid var(--panel-border);
-        border-radius: 3px;
+      .row .swatch {
+        width: 22px;
+        height: 22px;
+        border: 2px solid rgba(255, 255, 255, 0.08);
+        border-radius: 4px;
         cursor: pointer;
         padding: 0;
-        background: none;
         flex-shrink: 0;
-        transition: border-color 0.15s ease;
+        transition: border-color 0.2s cubic-bezier(0.25, 0, 0.2, 1),
+                    transform 0.15s cubic-bezier(0.25, 0, 0.2, 1),
+                    box-shadow 0.2s cubic-bezier(0.25, 0, 0.2, 1);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
       }
-      .row input[type="color"]:hover {
-        border-color: var(--text-muted);
+      .row .swatch:hover {
+        border-color: rgba(255, 255, 255, 0.2);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+        transform: scale(1.08);
       }
-      .row input[type="color"]::-webkit-color-swatch-wrapper {
-        padding: 1px;
+      .row .swatch:active {
+        transform: scale(0.95);
       }
-      .row input[type="color"]::-webkit-color-swatch {
+      .row .swatch:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+      }
+
+      #picker-view {
+        display: none;
+      }
+      #picker-view.active {
+        display: block;
+      }
+      #picker-back {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        background: none;
         border: none;
+        font-family: var(--sans);
+        font-size: 11px;
+        font-weight: 500;
+        color: var(--text-muted);
+        cursor: pointer;
+        padding: 3px 0;
+        margin-bottom: 10px;
+        transition: color 0.2s cubic-bezier(0.25, 0, 0.2, 1);
+      }
+      #picker-back:hover {
+        color: var(--accent);
+      }
+      #picker-back:active {
+        opacity: 0.7;
+      }
+      #picker-back:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
         border-radius: 2px;
+      }
+      #picker-back::before {
+        content: "\2190";
+        font-size: 13px;
+      }
+      #picker-label {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--text);
+        margin-bottom: 12px;
+        letter-spacing: -0.2px;
+      }
+      #picker-mount {
+        width: 100%;
+      }
+
+      /* Strip Oklume's card chrome and match sidebar design language */
+      #picker-mount .oklume--expanded {
+        background: none;
+        border: none;
+        border-radius: 0;
+        padding: 0;
+        max-width: none;
+        font-family: var(--sans);
+      }
+      #picker-mount .oklume-preview-box {
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        border-radius: var(--radius);
+        height: 72px;
+      }
+      #picker-mount .oklume-preview {
+        margin-bottom: 12px;
+      }
+      #picker-mount .oklume-swatch {
+        box-shadow: none;
+        border-radius: 2px;
+        width: 18px !important;
+        height: 18px !important;
+        min-width: 0;
+      }
+      #picker-mount .oklume-content {
+        gap: 14px;
+      }
+      #picker-mount .oklume-palette {
+        gap: 2px;
+        padding: 0;
+        /* Collapse by default, vertical scroll when open */
+        display: none;
+        max-height: 160px;
+        overflow-y: auto;
+        overflow-x: hidden;
+        grid-auto-flow: row;
+        grid-template-rows: none;
+        grid-template-columns: repeat(10, 1fr);
+        scrollbar-width: thin;
+        scrollbar-color: var(--panel-border) transparent;
+      }
+      #picker-mount .oklume-palette::-webkit-scrollbar {
+        width: 4px;
+      }
+      #picker-mount .oklume-palette::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      #picker-mount .oklume-palette::-webkit-scrollbar-thumb {
+        background: var(--panel-border);
+        border-radius: 2px;
+      }
+      #picker-mount .oklume-palette.palette-open {
+        display: grid;
+      }
+      .palette-toggle {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        background: none;
+        border: 1px solid var(--panel-border);
+        border-radius: var(--radius);
+        font-family: var(--sans);
+        font-size: 9px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.6px;
+        color: var(--text-muted);
+        cursor: pointer;
+        padding: 5px 8px;
+        width: 100%;
+        transition: color 0.2s cubic-bezier(0.25, 0, 0.2, 1),
+                    border-color 0.2s cubic-bezier(0.25, 0, 0.2, 1);
+      }
+      .palette-toggle:hover {
+        color: var(--text);
+        border-color: var(--text-dim);
+      }
+      .palette-toggle:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+      }
+      .palette-toggle::after {
+        content: "\25B6";
+        font-size: 7px;
+        margin-left: auto;
+        transition: transform 0.2s cubic-bezier(0.25, 0, 0.2, 1);
+      }
+      .palette-toggle.open::after {
+        transform: rotate(90deg);
+      }
+      /* Match sidebar slider style */
+      #picker-mount .oklume-slider label {
+        font-size: 9px;
+        font-weight: 600;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.6px;
+        font-family: var(--sans);
+      }
+      #picker-mount .oklume-slider label strong {
+        font-family: var(--mono);
+        font-size: 9px;
+        color: var(--text-dim);
+        font-weight: 400;
+      }
+      #picker-mount .oklume-slider input[type="range"] {
+        height: 3px;
+      }
+      #picker-mount .oklume-slider input[type="range"]::-webkit-slider-thumb {
+        width: 14px;
+        height: 14px;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+        background: var(--accent);
+        border: 2px solid var(--panel);
+      }
+      #picker-mount .oklume-slider input[type="range"]::-moz-range-thumb {
+        width: 14px;
+        height: 14px;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+        background: var(--accent);
+        border: 2px solid var(--panel);
+      }
+      #picker-mount .oklume-sliders {
+        gap: 12px;
+      }
+      #picker-mount .oklume-slider {
+        gap: 5px;
+      }
+      /* Flatten the hex output field */
+      #picker-mount .oklume-format label {
+        font-size: 9px;
+        font-weight: 600;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.6px;
+        font-family: var(--sans);
+      }
+      #picker-mount .oklume-value {
+        font-family: var(--mono);
+        font-size: 10px;
+        color: var(--text);
+        padding: 6px 8px;
+        border-radius: var(--radius);
+        border-color: var(--panel-border);
+        background: rgba(0, 0, 0, 0.2);
+      }
+      #picker-mount .oklume-output {
+        gap: 4px;
+      }
+      #picker-mount .oklume-format {
+        gap: 4px;
+      }
+
+      #sidebar-scroll.picker-open > *:not(#picker-view) {
+        display: none;
       }
 
       .row .name {
         flex: 1;
         color: var(--text);
-        font-size: 11.5px;
+        font-size: 12px;
+        font-weight: 400;
         line-height: 1;
         white-space: nowrap;
         overflow: hidden;
@@ -133,7 +370,7 @@
       }
       .row .hex {
         font-family: var(--mono);
-        font-size: 9.5px;
+        font-size: 9px;
         color: var(--text-dim);
         letter-spacing: -0.2px;
         flex-shrink: 0;
@@ -142,15 +379,15 @@
       .ctrl-row {
         display: flex;
         align-items: center;
-        gap: 8px;
-        margin-bottom: 6px;
+        gap: 10px;
+        margin-bottom: 8px;
       }
       .ctrl-row label {
-        font-size: 10px;
-        font-weight: 500;
+        font-size: 9px;
+        font-weight: 600;
         color: var(--text-muted);
         text-transform: uppercase;
-        letter-spacing: 0.4px;
+        letter-spacing: 0.6px;
         flex-shrink: 0;
         min-width: 52px;
       }
@@ -162,45 +399,99 @@
         background: var(--panel-border);
         border-radius: 2px;
         outline: none;
+        transition: background 0.2s;
+      }
+      .ctrl-row input[type="range"]:hover {
+        background: var(--text-dim);
       }
       .ctrl-row input[type="range"]::-webkit-slider-thumb {
         -webkit-appearance: none;
-        width: 12px;
-        height: 12px;
+        width: 14px;
+        height: 14px;
         border-radius: 50%;
-        background: var(--text);
+        background: var(--accent);
         cursor: pointer;
-        border: none;
+        border: 2px solid var(--panel);
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+        transition: transform 0.15s cubic-bezier(0.25, 0, 0.2, 1),
+                    box-shadow 0.15s cubic-bezier(0.25, 0, 0.2, 1);
+      }
+      .ctrl-row input[type="range"]::-webkit-slider-thumb:hover {
+        transform: scale(1.15);
+        box-shadow: 0 2px 8px rgba(196, 149, 106, 0.3);
+      }
+      .ctrl-row input[type="range"]::-moz-range-thumb {
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: var(--accent);
+        cursor: pointer;
+        border: 2px solid var(--panel);
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
       }
       .ctrl-row .val {
         font-family: var(--mono);
-        font-size: 9.5px;
+        font-size: 9px;
         color: var(--text-dim);
         min-width: 28px;
         text-align: right;
       }
 
-      .export-btn {
+      .footer-btn {
         display: block;
         width: 100%;
-        padding: 7px 0;
-        margin-top: 10px;
-        background: var(--btn);
-        color: #fff;
+        padding: 8px 0;
         border: none;
         border-radius: var(--radius);
         font-family: var(--sans);
         font-size: 11px;
-        font-weight: 500;
-        letter-spacing: 0.2px;
+        font-weight: 600;
+        letter-spacing: 0.3px;
         cursor: pointer;
-        transition: background 0.15s ease;
+        transition: background 0.2s cubic-bezier(0.25, 0, 0.2, 1),
+                    transform 0.1s cubic-bezier(0.25, 0, 0.2, 1),
+                    border-color 0.2s cubic-bezier(0.25, 0, 0.2, 1),
+                    color 0.2s cubic-bezier(0.25, 0, 0.2, 1);
       }
-      .export-btn:hover {
-        background: var(--btn-hover);
+      .footer-btn:active {
+        transform: scale(0.97);
       }
-      .export-btn:active {
-        transform: scale(0.98);
+      .footer-btn:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+      }
+      .footer-btn--primary {
+        background: var(--accent);
+        color: #0c1a2e;
+      }
+      .footer-btn--primary:hover {
+        background: var(--accent-hover);
+      }
+      .footer-btn--secondary {
+        background: transparent;
+        color: var(--text-muted);
+        border: 1px solid var(--panel-border);
+      }
+      .footer-btn--secondary:hover {
+        border-color: var(--text-dim);
+        color: var(--text);
+      }
+      .footer-btns {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        margin-top: 12px;
+      }
+      .footer-btns-row {
+        display: flex;
+        gap: 6px;
+      }
+      .footer-btns-row > .footer-btn {
+        flex: 1;
+      }
+      .ctrl-row input[type="range"]:focus-visible::-webkit-slider-thumb {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
       }
 
       #canvas-wrap {
@@ -216,6 +507,11 @@
     <div id="sidebar">
       <div id="sidebar-scroll">
         <div id="colors"></div>
+        <div id="picker-view">
+          <button id="picker-back">Back</button>
+          <div id="picker-label"></div>
+          <div id="picker-mount"></div>
+        </div>
 
         <div class="section">Underwater</div>
         <div class="ctrl-row">
@@ -293,7 +589,7 @@
           <span class="val" id="v-fogmax">0.85</span>
         </div>
         <div class="row">
-          <input type="color" id="u-fogcolor" value="#021038" />
+          <button class="swatch" id="u-fogcolor-btn" style="background:#021038"></button>
           <span class="name">Fog Color</span>
           <span class="hex" id="v-fogcolor">#021038</span>
         </div>
@@ -312,7 +608,13 @@
           />
           <span class="val" id="v-ptsize">1.5</span>
         </div>
-        <button class="export-btn" id="btn-export">Export Settings</button>
+        <div class="footer-btns">
+          <button class="footer-btn footer-btn--primary" id="btn-export">Export Settings</button>
+          <div class="footer-btns-row">
+            <button class="footer-btn footer-btn--secondary" id="btn-import">Import</button>
+            <button class="footer-btn footer-btn--secondary" id="btn-reset">Reset</button>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -322,6 +624,8 @@
       import * as THREE from "three";
       import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
       import { FullScreenQuad } from "three/examples/jsm/postprocessing/Pass.js";
+      import Oklume from "oklume";
+      import "oklume/style.css";
 
       // ── Color definitions ──
       const COLORS = [
@@ -362,10 +666,136 @@
 
       const lookup = {};
       const cur = {};
+      const defaults = {};
       COLORS.flatMap((g) => g.items).forEach((e) => {
         lookup[rk(...e.rgb)] = e;
         cur[e.key] = [...e.rgb];
+        defaults[e.key] = [...e.rgb];
       });
+
+      const STORAGE_KEY = "kelpatscale-settings";
+
+      const SLIDER_IDS = {
+        "u-caustics": { uniform: "uCaustics", valId: "v-caustics" },
+        "u-godrays": { uniform: "uGodrays", valId: "v-godrays" },
+        "u-bubbles": { uniform: "uBubbles", valId: "v-bubbles" },
+        "u-speed": { uniform: "uSpeed", valId: "v-speed" },
+        "u-fogdensity": { uniform: "uFogDensity", valId: "v-fogdensity" },
+        "u-fogmax": { uniform: "uFogMax", valId: "v-fogmax" },
+      };
+
+      const DEFAULT_SETTINGS = {
+        colors: Object.fromEntries(
+          Object.entries(defaults).map(([k, rgb]) => [k, toHex(...rgb)]),
+        ),
+        underwater: { caustics: 0.6, godrays: 0.5, bubbles: 0.4, speed: 1.0 },
+        fog: { density: 0.06, max: 0.85, color: "#021038" },
+        pointSize: 1.5,
+      };
+
+      function gatherSettings() {
+        const settings = {
+          colors: {},
+          underwater: {
+            caustics: parseFloat(document.getElementById("u-caustics").value),
+            godrays: parseFloat(document.getElementById("u-godrays").value),
+            bubbles: parseFloat(document.getElementById("u-bubbles").value),
+            speed: parseFloat(document.getElementById("u-speed").value),
+          },
+          fog: {
+            density: parseFloat(document.getElementById("u-fogdensity").value),
+            max: parseFloat(document.getElementById("u-fogmax").value),
+            color: document.getElementById("v-fogcolor").textContent,
+          },
+          pointSize: parseFloat(document.getElementById("pt-size").value),
+        };
+        for (const [k, rgb] of Object.entries(cur))
+          settings.colors[k] = toHex(...rgb);
+        return settings;
+      }
+
+      function saveSettings() {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(gatherSettings()));
+        } catch {}
+      }
+
+      function applySettings(settings) {
+        // Colors
+        if (settings.colors) {
+          for (const [k, hex] of Object.entries(settings.colors)) {
+            if (cur[k]) cur[k] = fromHex(hex);
+          }
+        }
+
+        // Underwater sliders
+        if (settings.underwater) {
+          const map = {
+            caustics: "u-caustics",
+            godrays: "u-godrays",
+            bubbles: "u-bubbles",
+            speed: "u-speed",
+          };
+          for (const [key, id] of Object.entries(map)) {
+            if (settings.underwater[key] != null) {
+              const el = document.getElementById(id);
+              const v = settings.underwater[key];
+              el.value = v;
+              const info = SLIDER_IDS[id];
+              document.getElementById(info.valId).textContent = v.toFixed(
+                v < 1 ? 2 : 1,
+              );
+              if (typeof postMat !== "undefined")
+                postMat.uniforms[info.uniform].value = v;
+            }
+          }
+        }
+
+        // Fog sliders
+        if (settings.fog) {
+          if (settings.fog.density != null) {
+            const el = document.getElementById("u-fogdensity");
+            el.value = settings.fog.density;
+            document.getElementById("v-fogdensity").textContent =
+              settings.fog.density.toFixed(settings.fog.density < 1 ? 2 : 1);
+            if (typeof postMat !== "undefined")
+              postMat.uniforms.uFogDensity.value = settings.fog.density;
+          }
+          if (settings.fog.max != null) {
+            const el = document.getElementById("u-fogmax");
+            el.value = settings.fog.max;
+            document.getElementById("v-fogmax").textContent =
+              settings.fog.max.toFixed(settings.fog.max < 1 ? 2 : 1);
+            if (typeof postMat !== "undefined")
+              postMat.uniforms.uFogMax.value = settings.fog.max;
+          }
+          if (settings.fog.color) {
+            const [r, g, b] = fromHex(settings.fog.color);
+            document.getElementById("u-fogcolor-btn").style.background =
+              settings.fog.color;
+            document.getElementById("v-fogcolor").textContent =
+              settings.fog.color;
+            if (typeof postMat !== "undefined")
+              postMat.uniforms.uFogColor.value.set(r / 255, g / 255, b / 255);
+          }
+        }
+
+        // Point size
+        if (settings.pointSize != null) {
+          const el = document.getElementById("pt-size");
+          el.value = settings.pointSize;
+          document.getElementById("v-ptsize").textContent =
+            settings.pointSize.toFixed(1);
+          if (cloud) cloud.material.size = settings.pointSize;
+        }
+
+        if (cloud) {
+          applyColors();
+          buildColorUI();
+        }
+
+        saveSettings();
+      }
 
       // ── Underwater post-process shader ──
       const underwaterShader = {
@@ -532,7 +962,7 @@
       const wrap = document.getElementById("canvas-wrap");
       const renderer = new THREE.WebGLRenderer({ antialias: true });
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-      renderer.setClearColor(0x787878);
+      renderer.setClearColor(0x0a1420);
       wrap.appendChild(renderer.domElement);
 
       const scene = new THREE.Scene();
@@ -663,12 +1093,90 @@
         vtxCats = cats;
         vtxCount = n;
         buildColorUI();
+
+        // Restore saved settings after first load
+        try {
+          const saved = localStorage.getItem(STORAGE_KEY);
+          if (saved) applySettings(JSON.parse(saved));
+        } catch {}
       }
 
       // ── Color UI ──
+      let activePicker = null;
+
+      function openPicker(entry, swatchBtn, hxSpan) {
+        const scroll = document.getElementById("sidebar-scroll");
+        const view = document.getElementById("picker-view");
+        const mount = document.getElementById("picker-mount");
+        const label = document.getElementById("picker-label");
+
+        if (activePicker) {
+          activePicker.destroy();
+          activePicker = null;
+        }
+        mount.innerHTML = "";
+        label.textContent = entry.name;
+
+        const picker = new Oklume(mount, {
+          mode: "expanded",
+          showPreview: true,
+          showSliders: true,
+          showFormats: ["hex"],
+        });
+
+        const [r, g, b] = cur[entry.key];
+        const oklch = picker.rgbToOklch(r, g, b);
+        picker.setColor(oklch.l, oklch.c, oklch.h);
+
+        picker.onChange = (color) => {
+          const hex = color.hex;
+          cur[entry.key] = fromHex(hex);
+          swatchBtn.style.background = hex;
+          hxSpan.textContent = hex;
+          applyColors();
+          saveSettings();
+        };
+
+        activePicker = picker;
+        scroll.classList.add("picker-open");
+        view.classList.add("active");
+
+        // Inject palette toggle button
+        requestAnimationFrame(() => {
+          const palette = mount.querySelector(".oklume-palette");
+          if (palette && !palette.previousElementSibling?.classList.contains("palette-toggle")) {
+            const toggle = document.createElement("button");
+            toggle.className = "palette-toggle";
+            toggle.textContent = "Swatches";
+            toggle.addEventListener("click", () => {
+              const isOpen = palette.classList.toggle("palette-open");
+              toggle.classList.toggle("open", isOpen);
+            });
+            palette.parentNode.insertBefore(toggle, palette);
+          }
+        });
+      }
+
+      function closePicker() {
+        const scroll = document.getElementById("sidebar-scroll");
+        const view = document.getElementById("picker-view");
+        const mount = document.getElementById("picker-mount");
+
+        if (activePicker) {
+          activePicker.destroy();
+          activePicker = null;
+        }
+        mount.innerHTML = "";
+        scroll.classList.remove("picker-open");
+        view.classList.remove("active");
+      }
+
+      document.getElementById("picker-back").addEventListener("click", closePicker);
+
       function buildColorUI() {
         const el = document.getElementById("colors");
         el.innerHTML = "";
+        closePicker();
 
         COLORS.forEach(({ group, items }) => {
           const shown = items.filter((e) => counts[e.key]);
@@ -683,10 +1191,10 @@
             const div = document.createElement("div");
             div.className = "row";
 
-            const inp = document.createElement("input");
-            inp.type = "color";
-            inp.value = toHex(...cur[entry.key]);
-            inp.setAttribute("aria-label", entry.name + " color");
+            const btn = document.createElement("button");
+            btn.className = "swatch";
+            btn.style.background = toHex(...cur[entry.key]);
+            btn.setAttribute("aria-label", entry.name + " color");
 
             const name = document.createElement("span");
             name.className = "name";
@@ -694,15 +1202,11 @@
 
             const hx = document.createElement("span");
             hx.className = "hex";
-            hx.textContent = inp.value;
+            hx.textContent = toHex(...cur[entry.key]);
 
-            inp.addEventListener("input", () => {
-              cur[entry.key] = fromHex(inp.value);
-              hx.textContent = inp.value;
-              applyColors();
-            });
+            btn.addEventListener("click", () => openPicker(entry, btn, hx));
 
-            div.append(inp, name, hx);
+            div.append(btn, name, hx);
             el.appendChild(div);
           });
         });
@@ -730,6 +1234,7 @@
           const v = parseFloat(el.value);
           postMat.uniforms[uniform].value = v;
           vEl.textContent = v.toFixed(v < 1 ? 2 : 1);
+          saveSettings();
         });
       }
       wireSlider("u-caustics", "uCaustics", "v-caustics");
@@ -744,45 +1249,65 @@
           e.target.value,
         ).toFixed(1);
         if (cloud) cloud.material.size = parseFloat(e.target.value);
+        saveSettings();
       });
 
       // Fog color picker
-      const fogColorInput = document.getElementById("u-fogcolor");
+      const fogColorBtn = document.getElementById("u-fogcolor-btn");
       const fogColorHex = document.getElementById("v-fogcolor");
-      fogColorInput.addEventListener("input", () => {
-        const [r, g, b] = fromHex(fogColorInput.value);
-        postMat.uniforms.uFogColor.value.set(r / 255, g / 255, b / 255);
-        fogColorHex.textContent = fogColorInput.value;
+      fogColorBtn.addEventListener("click", () => {
+        const fogEntry = {
+          key: "_fog",
+          name: "Fog Color",
+        };
+        cur._fog = fromHex(fogColorHex.textContent);
+        openPicker(fogEntry, fogColorBtn, fogColorHex);
+        // Override onChange for fog-specific behavior
+        if (activePicker) {
+          activePicker.onChange = (color) => {
+            const hex = color.hex;
+            const [r, g, b] = fromHex(hex);
+            postMat.uniforms.uFogColor.value.set(r / 255, g / 255, b / 255);
+            fogColorBtn.style.background = hex;
+            fogColorHex.textContent = hex;
+            saveSettings();
+          };
+        }
       });
 
-      // ── Export all settings ──
+      // ── Export ──
       document.getElementById("btn-export").addEventListener("click", () => {
-        const settings = {
-          colors: {},
-          underwater: {
-            caustics: parseFloat(document.getElementById("u-caustics").value),
-            godrays: parseFloat(document.getElementById("u-godrays").value),
-            bubbles: parseFloat(document.getElementById("u-bubbles").value),
-            speed: parseFloat(document.getElementById("u-speed").value),
-          },
-          fog: {
-            density: parseFloat(document.getElementById("u-fogdensity").value),
-            max: parseFloat(document.getElementById("u-fogmax").value),
-            color: fogColorInput.value,
-          },
-          pointSize: parseFloat(document.getElementById("pt-size").value),
-        };
-        for (const [k, rgb] of Object.entries(cur))
-          settings.colors[k] = toHex(...rgb);
-
         const a = document.createElement("a");
         a.href = URL.createObjectURL(
-          new Blob([JSON.stringify(settings, null, 2)], {
+          new Blob([JSON.stringify(gatherSettings(), null, 2)], {
             type: "application/json",
           }),
         );
         a.download = "settings.json";
         a.click();
+      });
+
+      // ── Import ──
+      document.getElementById("btn-import").addEventListener("click", () => {
+        const inp = document.createElement("input");
+        inp.type = "file";
+        inp.accept = ".json";
+        inp.addEventListener("change", () => {
+          const file = inp.files[0];
+          if (!file) return;
+          file.text().then((text) => {
+            try {
+              applySettings(JSON.parse(text));
+            } catch {}
+          });
+        });
+        inp.click();
+      });
+
+      // ── Reset ──
+      document.getElementById("btn-reset").addEventListener("click", () => {
+        applySettings(DEFAULT_SETTINGS);
+        localStorage.removeItem(STORAGE_KEY);
       });
 
       // ── Auto-load ──
